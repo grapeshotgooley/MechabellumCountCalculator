@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
+print("Testing git integration")
 
 
 class LargeStepSpinBox(QSpinBox):
