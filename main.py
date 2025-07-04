@@ -1,6 +1,8 @@
 import sys
 import os
 import random
+import pandas as pd
+
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QComboBox, QSpinBox,
     QPushButton, QVBoxLayout, QHBoxLayout, QCheckBox,
@@ -8,8 +10,34 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
-print("Testing git integration")
+print("program init")
 
+matchup_matrix = pd.read_csv('./Unit_Matchup_Matrix.csv', index_col=0)
+
+
+def evaluate_best_counter(unit_credits, matchup_matrix):
+    """
+    Takes in a list of (unit, credit_amount) tuples and compares every possible unit in the matrix
+    to find which has the highest sum of (matchup_value * credit_amount) against the provided list.
+
+    Args:
+        unit_credits (list of tuples): List in format [(unit_name, credit_amount), ...]
+        matchup_matrix (DataFrame): Matrix of matchup values between units
+
+    Returns:
+        tuple: (unit_with_highest_sum, highest_sum_value)
+    """
+    results = {}
+
+    for candidate_unit in matchup_matrix.index:
+        total = 0
+        for enemy_unit, credits in unit_credits:
+            matchup_value = int(matchup_matrix.loc[candidate_unit, enemy_unit])
+            total += matchup_value * credits
+        results[candidate_unit] = total
+
+    best_unit = max(results, key=results.get)
+    return best_unit, results[best_unit]
 
 class LargeStepSpinBox(QSpinBox):
     def __init__(self):
@@ -156,10 +184,18 @@ class TechThemeUI(QWidget):
         self.adjustSize()  # Dynamically grow the window height
 
     def handle_counter_click(self):
-        unit_name = random.choice(self.unit_names)
-        self.result_label.setText(f"Suggested Unit: {unit_name}")
+        unit_credits = []
+        for i in range(self.unit_sections_container.count()):
+            section = self.unit_sections_container.itemAt(i).widget()
+            unit = section.unit_dropdown.currentText()
+            credits = section.credits_input.value()
+            unit_credits.append((unit, credits))
 
-        image_path = f"./mechabellum units/{unit_name}.jpg"
+        # Evaluate best counter using matchup matrix
+        best_unit, _ = evaluate_best_counter(unit_credits, matchup_matrix)
+        self.result_label.setText(f"Suggested Unit: {best_unit}")
+
+        image_path = f"./mechabellum units/{best_unit}.jpg"
         if os.path.exists(image_path):
             pixmap = QPixmap(image_path).scaled(
                 self.image_label.width(),
@@ -172,6 +208,7 @@ class TechThemeUI(QWidget):
         else:
             self.image_label.setPixmap(QPixmap())  # Clear old image
             self.image_label.setText("Image not found")
+
 
 
 if __name__ == "__main__":
