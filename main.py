@@ -1,6 +1,5 @@
 import sys
 import os
-import random
 import pandas as pd
 
 from PyQt6.QtWidgets import (
@@ -15,14 +14,20 @@ print("program init")
 
 matchup_matrix = pd.read_csv('./Unit_Matchup_Matrix.csv', index_col=0)
 
-def evaluate_best_counter(unit_credits, matchup_matrix):
+def evaluate_best_counter(unit_credits, matchup_matrix, exclude_units=None):
     results = {}
+    exclude_units = set(exclude_units or [])
+
     print("\n---- Running evaluate_best_counter ----")
     print("Enemy units and credits:")
     for unit, credits in unit_credits:
         print(f"  {unit}: {credits} credits")
 
     for candidate_unit in matchup_matrix.index:
+        if candidate_unit in exclude_units:
+            print(f"  Skipping {candidate_unit} (excluded)")
+            continue
+
         total = 0
         print(f"\nEvaluating {candidate_unit} against enemy units:")
         for enemy_unit, credits in unit_credits:
@@ -104,7 +109,7 @@ class TechThemeUI(QWidget):
             "Fortress", "Vulcan", "Mountain", "Typhoon"
         ]
 
-        self.unit_sections = []  # ✅ Declare this list to track UnitSection objects
+        self.unit_sections = []
         self.init_ui()
 
     def init_ui(self):
@@ -129,16 +134,17 @@ class TechThemeUI(QWidget):
         remove_button.clicked.connect(self.remove_unit_section)
         self.main_layout.addWidget(remove_button)
 
-        fire_badger_checkbox = QCheckBox("Fire Badger")
-        fire_badger_checkbox.setStyleSheet("color: #66fcf1; font-size: 16px;")
-        typhoon_checkbox = QCheckBox("Typhoon")
-        typhoon_checkbox.setStyleSheet("color: #66fcf1; font-size: 16px;")
+        # Store checkboxes as instance attributes
+        self.fire_badger_checkbox = QCheckBox("Fire Badger")
+        self.fire_badger_checkbox.setStyleSheet("color: #66fcf1; font-size: 16px;")
+        self.typhoon_checkbox = QCheckBox("Typhoon")
+        self.typhoon_checkbox.setStyleSheet("color: #66fcf1; font-size: 16px;")
 
         checkbox_frame = QGroupBox("Spec Unlocks")
         checkbox_layout = QVBoxLayout()
         checkbox_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        checkbox_layout.addWidget(fire_badger_checkbox)
-        checkbox_layout.addWidget(typhoon_checkbox)
+        checkbox_layout.addWidget(self.fire_badger_checkbox)
+        checkbox_layout.addWidget(self.typhoon_checkbox)
         checkbox_frame.setLayout(checkbox_layout)
         checkbox_frame.setStyleSheet("""
             QGroupBox {
@@ -189,7 +195,7 @@ class TechThemeUI(QWidget):
     def remove_unit_section(self):
         if self.unit_sections:
             section = self.unit_sections.pop()
-            section.setParent(None)  # This removes the widget from the layout
+            section.setParent(None)
             self.adjustSize()
 
     def handle_counter_click(self):
@@ -206,8 +212,17 @@ class TechThemeUI(QWidget):
             self.result_label.setText("Please add units to evaluate.")
             return
 
+        # Determine exclusions
+        exclude_units = []
+        if not self.fire_badger_checkbox.isChecked():
+            exclude_units.append("Fire Badger")
+        if not self.typhoon_checkbox.isChecked():
+            exclude_units.append("Typhoon")
+
+        print(f"Excluded units: {exclude_units}")
         print("Running evaluate_best_counter...")
-        best_unit, total_score = evaluate_best_counter(unit_credits, matchup_matrix)
+
+        best_unit, total_score = evaluate_best_counter(unit_credits, matchup_matrix, exclude_units)
         print(f"Best Unit: {best_unit}, Score: {total_score}")
 
         self.result_label.setText(f"Suggested Unit: {best_unit}")
@@ -227,7 +242,7 @@ class TechThemeUI(QWidget):
             self.image_label.setText("")
         else:
             print("Image not found.")
-            self.image_label.setPixmap(QPixmap())  # Clear old image
+            self.image_label.setPixmap(QPixmap())
             self.image_label.setText("Image not found")
 
 
