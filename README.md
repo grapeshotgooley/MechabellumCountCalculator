@@ -7,10 +7,10 @@ A PyQt6-based desktop application for tracking and analyzing Mechabellum units. 
 - 📦 Add unlimited unit input sections, each with:
   - Dropdown to choose a unit
   - Adjustable "credits invested" field with 100-credit steps
-- 🔍 "Counter" button randomly selects a unit from the list and displays:
+- 🔍 "Counter" button algorithmicly selects a unit from the list and displays:
   - The unit name
   - An image from the `./mechabellum units/` folder
-- ✅ Checkbox toggles for Fire Badger and Typhoon
+- ✅ Checkbox toggles for Fire Badger and Typhoon spec units
 - 🎨 Tech-themed styling and fully responsive layout
 - 🧱 No scroll bars — window expands to fit content dynamically
 
