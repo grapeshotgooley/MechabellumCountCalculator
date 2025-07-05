@@ -10,34 +10,36 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
+
 print("program init")
 
 matchup_matrix = pd.read_csv('./Unit_Matchup_Matrix.csv', index_col=0)
 
-
 def evaluate_best_counter(unit_credits, matchup_matrix):
-    """
-    Takes in a list of (unit, credit_amount) tuples and compares every possible unit in the matrix
-    to find which has the highest sum of (matchup_value * credit_amount) against the provided list.
-
-    Args:
-        unit_credits (list of tuples): List in format [(unit_name, credit_amount), ...]
-        matchup_matrix (DataFrame): Matrix of matchup values between units
-
-    Returns:
-        tuple: (unit_with_highest_sum, highest_sum_value)
-    """
     results = {}
+    print("\n---- Running evaluate_best_counter ----")
+    print("Enemy units and credits:")
+    for unit, credits in unit_credits:
+        print(f"  {unit}: {credits} credits")
 
     for candidate_unit in matchup_matrix.index:
         total = 0
+        print(f"\nEvaluating {candidate_unit} against enemy units:")
         for enemy_unit, credits in unit_credits:
-            matchup_value = int(matchup_matrix.loc[candidate_unit, enemy_unit])
-            total += matchup_value * credits
+            try:
+                matchup_value = int(matchup_matrix.loc[candidate_unit, enemy_unit])
+                print(f"  vs {enemy_unit}: matchup value = {matchup_value}, weighted = {matchup_value * credits}")
+                total += matchup_value * credits
+            except KeyError:
+                print(f"  [!] KeyError: {candidate_unit} vs {enemy_unit} not found in matrix.")
+                continue
         results[candidate_unit] = total
+        print(f"  Total score for {candidate_unit}: {total}")
 
     best_unit = max(results, key=results.get)
+    print(f"\n>> Best unit: {best_unit} with score: {results[best_unit]}")
     return best_unit, results[best_unit]
+
 
 class LargeStepSpinBox(QSpinBox):
     def __init__(self):
@@ -58,7 +60,6 @@ class LargeStepSpinBox(QSpinBox):
                 height: 15px;
             }
         """)
-
 
 class UnitSection(QGroupBox):
     def __init__(self, unit_names):
@@ -91,7 +92,6 @@ class UnitSection(QGroupBox):
         layout.addWidget(self.credits_input)
         self.setLayout(layout)
 
-
 class TechThemeUI(QWidget):
     def __init__(self):
         super().__init__()
@@ -104,6 +104,7 @@ class TechThemeUI(QWidget):
             "Fortress", "Vulcan", "Mountain", "Typhoon"
         ]
 
+        self.unit_sections = []  # ✅ Declare this list to track UnitSection objects
         self.init_ui()
 
     def init_ui(self):
@@ -113,19 +114,21 @@ class TechThemeUI(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        # Directly add unit sections to main layout
         self.unit_sections_container = QVBoxLayout()
         self.main_layout.addLayout(self.unit_sections_container)
 
-        self.add_unit_section()  # Add first section
+        self.add_unit_section()
 
-        # Add button below unit sections
         add_button = QPushButton("+ Add Unit")
         add_button.setStyleSheet("background-color: #1f2833; color: #66fcf1; font-size: 16px;")
         add_button.clicked.connect(self.add_unit_section)
         self.main_layout.addWidget(add_button)
 
-        # Checkboxes
+        remove_button = QPushButton("- Remove Unit")
+        remove_button.setStyleSheet("background-color: #1f2833; color: #66fcf1; font-size: 16px;")
+        remove_button.clicked.connect(self.remove_unit_section)
+        self.main_layout.addWidget(remove_button)
+
         fire_badger_checkbox = QCheckBox("Fire Badger")
         fire_badger_checkbox.setStyleSheet("color: #66fcf1; font-size: 16px;")
         typhoon_checkbox = QCheckBox("Typhoon")
@@ -146,7 +149,6 @@ class TechThemeUI(QWidget):
         """)
         self.main_layout.addWidget(checkbox_frame)
 
-        # Analysis section
         self.counter_button = QPushButton("Counter")
         self.counter_button.setStyleSheet("background-color: #1f2833; color: #66fcf1; font-size: 16px;")
         self.counter_button.setFixedHeight(40)
@@ -181,22 +183,40 @@ class TechThemeUI(QWidget):
     def add_unit_section(self):
         section = UnitSection(self.unit_names)
         self.unit_sections_container.addWidget(section)
-        self.adjustSize()  # Dynamically grow the window height
+        self.unit_sections.append(section)
+        self.adjustSize()
+
+    def remove_unit_section(self):
+        if self.unit_sections:
+            section = self.unit_sections.pop()
+            section.setParent(None)  # This removes the widget from the layout
+            self.adjustSize()
 
     def handle_counter_click(self):
         unit_credits = []
-        for i in range(self.unit_sections_container.count()):
-            section = self.unit_sections_container.itemAt(i).widget()
+        print("---- Evaluating Counter ----")
+        for section in self.unit_sections:
             unit = section.unit_dropdown.currentText()
             credits = section.credits_input.value()
             unit_credits.append((unit, credits))
+            print(f"Unit: {unit}, Credits: {credits}")
 
-        # Evaluate best counter using matchup matrix
-        best_unit, _ = evaluate_best_counter(unit_credits, matchup_matrix)
+        if not unit_credits:
+            print("No units to evaluate.")
+            self.result_label.setText("Please add units to evaluate.")
+            return
+
+        print("Running evaluate_best_counter...")
+        best_unit, total_score = evaluate_best_counter(unit_credits, matchup_matrix)
+        print(f"Best Unit: {best_unit}, Score: {total_score}")
+
         self.result_label.setText(f"Suggested Unit: {best_unit}")
 
         image_path = f"./mechabellum units/{best_unit}.jpg"
+        print(f"Looking for image at: {image_path}")
+
         if os.path.exists(image_path):
+            print("Image found.")
             pixmap = QPixmap(image_path).scaled(
                 self.image_label.width(),
                 self.image_label.height(),
@@ -206,9 +226,9 @@ class TechThemeUI(QWidget):
             self.image_label.setPixmap(pixmap)
             self.image_label.setText("")
         else:
+            print("Image not found.")
             self.image_label.setPixmap(QPixmap())  # Clear old image
             self.image_label.setText("Image not found")
-
 
 
 if __name__ == "__main__":
