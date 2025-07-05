@@ -20,7 +20,7 @@ A PyQt6-based desktop application for tracking and analyzing Mechabellum units. 
 
 2. **Install dependencies**:
    ```bash
-   pip install PyQt6
+   pip install PyQt6, Pandas
    ```
 
 3. **Prepare your unit images**:
