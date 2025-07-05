@@ -47,8 +47,7 @@ project/
 
 ## Example
 
-![UI Screenshot](screenshot.png)  
-_(Optional: Add a screenshot of the UI here)_
+![UI Screenshot](screenshot.png)
 
 ## License
 
